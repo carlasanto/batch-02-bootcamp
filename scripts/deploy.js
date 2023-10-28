@@ -1,32 +1,43 @@
-var { ethers } = require("hardhat");
+const { ethers } = require("hardhat");
 
 async function main() {
-  const miPrimerContrato = await ethers.deployContract("MiPrimerContrato");
-  await miPrimerContrato.waitForDeployment();
+  // hardhat me otorga a los signers
+  // - si publicamos a un blockchain local: signers ficticios
+  // - si publico a una red (mumbai): signer es el mismo de hardhat.config
+  var [owner, alice, bob] = await ethers.getSigners();
 
-  console.log("\n");
-  console.log("======Publicando tu primer contrato (1 min)... ======");
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  await delay(60000); // 1 min
+  // Contrato a publicar: BBTKN
+  var contract = await ethers.deployContract("BBTKN");
+  console.log(`Address del contrato ${await contract.getAddress()}`);
 
-  const addressContract = await miPrimerContrato.getAddress();
-  console.log("====== ¡Felicidades! Haz publicado tu primer contrato ======");
-  console.log("Address del Contrato:", addressContract);
+  // Esperar confirmaciones: cuando publicas un contrato en testnet/mainnet
+  // necesitas esperar 5 confirmaciones para luego verificar el contrato (script)
+  // Esperando 10 confirmaciones
+  // Se espera cuando publicas tu contrato en testnet/mainnet. No se usa en blockchain local
+  if (
+    !!process.env.HARDHAT_NETWORK &&
+    process.env.HARDHAT_NETWORK != "localhost"
+  ) {
+    // HARDHAT_NETWORK: mumbai
+    // HARDHAT_NETWORK: $ npx hardhat --network [HARDHAT_NETWORK] run script/deploy.js
+    var res = await contract.waitForDeployment();
+    await res.deploymentTransaction().wait(10);
+  }
 
-  console.log("\n");
-  console.log("====== Empezo la verificaion del contrato ======");
-  await hre.run("verify:verify", {
-    address: addressContract,
-    constructorArguments: [],
-  });
-  console.log("\n");
-  console.log("====== ¡Felicidades! Haz verificado tu primer contrato ======");
-  console.log("\n");
+  if (
+    !!process.env.HARDHAT_NETWORK &&
+    process.env.HARDHAT_NETWORK != "localhost"
+  ) {
+    // hre: no se declara porque el comando crea un contexto de hardhat donde injecta esa variables
+    await hre.run("verify:verify", {
+      address: await contract.getAddress(),
+      constructorArguments: [],
+    });
+  }
 
-  console.log("Guarda este Address del Contrato (requisito):", addressContract);
+  // 1 publicando el contrato de manera local
+  // npx hardhat run scripts/deploy.js
+  console.log("FIN");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main();
